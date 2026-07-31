@@ -20,7 +20,15 @@
   <article data-testid="conversation-turn-3">
     <div data-message-author-role="assistant" data-message-streaming="true">
       <div class="markdown">
-        <p>生成中の回答（未完了）。トグルを付けてはいけない。</p>
+        <p>生成中の回答（未完了・フラグ検出）。トグルを付けてはいけない。</p>
+      </div>
+    </div>
+  </article>
+
+  <article data-testid="conversation-turn-4">
+    <div data-message-author-role="assistant">
+      <div class="markdown result-streaming">
+        <p>生成中の回答（未完了・result-streaming 検出）。触らない。</p>
       </div>
     </div>
   </article>

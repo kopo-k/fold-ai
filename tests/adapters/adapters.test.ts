@@ -25,14 +25,15 @@ describe('chatgpt adapter', () => {
 
   it('finds only assistant messages (excludes user turns)', () => {
     const messages = chatgptAdapter.findMessages(document)
-    expect(messages).toHaveLength(2)
+    expect(messages).toHaveLength(3)
     messages.forEach((m) => expect(m.getAttribute('data-message-author-role')).toBe('assistant'))
   })
 
-  it('marks completed answers complete and streaming ones incomplete', () => {
-    const [done, streaming] = chatgptAdapter.findMessages(document)
+  it('detects completion and both streaming signals (flag + result-streaming)', () => {
+    const [done, streamingFlag, streamingClass] = chatgptAdapter.findMessages(document)
     expect(chatgptAdapter.isComplete(done!)).toBe(true)
-    expect(chatgptAdapter.isComplete(streaming!)).toBe(false)
+    expect(chatgptAdapter.isComplete(streamingFlag!)).toBe(false)
+    expect(chatgptAdapter.isComplete(streamingClass!)).toBe(false)
   })
 
   it('anchors to the markdown body', () => {

@@ -16,10 +16,8 @@ export default defineConfig({
     target: 'es2022',
   },
   server: {
+    // 既定ポートが埋まっていても衝突しないよう自動で空きポートを選ぶ。
     port: 5173,
-    strictPort: true,
-    hmr: {
-      port: 5174,
-    },
+    strictPort: false,
   },
 })

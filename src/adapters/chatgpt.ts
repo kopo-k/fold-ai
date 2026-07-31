@@ -2,7 +2,8 @@ import type { Adapter } from './types'
 
 // ChatGPT (chatgpt.com / chat.openai.com)
 // アシスタントメッセージは data-message-author-role="assistant" を持つ。
-// ストリーミング中はメッセージ要素に data-message-streaming が付く / 完了で消える。
+// ストリーミング中は本文に .result-streaming クラス、または
+// data-message-streaming="true" が付き、完了で消える。
 
 const ASSISTANT_SELECTOR = '[data-message-author-role="assistant"]'
 
@@ -18,11 +19,13 @@ export const chatgptAdapter: Adapter = {
   },
 
   isComplete(el) {
-    // ストリーミング中フラグが立っている間は未完了扱い。
+    // ストリーミング中は本文に .result-streaming が付く（最も安定したシグナル）。
+    if (el.querySelector('.result-streaming')) return false
+    // 明示フラグがある場合はそれも尊重する。
     if (el.getAttribute('data-message-streaming') === 'true') return false
-    // 生成完了後に現れるアクションバー（コピー等）を完了シグナルとして併用する。
-    const turn = el.closest('[data-testid^="conversation-turn"]') ?? el
-    return turn.querySelector('[data-testid="copy-turn-action-button"]') !== null
+    // ここまで来れば生成は完了とみなす。
+    // （コピーボタンは hover 遅延描画があるため完了判定には使わない。）
+    return true
   },
 
   anchorFor(el) {

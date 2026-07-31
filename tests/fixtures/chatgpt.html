@@ -1,0 +1,27 @@
+<!-- ChatGPT の DOM スナップショット（簡略版）。実構造の要点のみを保持する。 -->
+<main>
+  <article data-testid="conversation-turn-1">
+    <div data-message-author-role="user">
+      <div class="whitespace-pre-wrap">ユーザーの質問</div>
+    </div>
+  </article>
+
+  <article data-testid="conversation-turn-2">
+    <div data-message-author-role="assistant">
+      <div class="markdown">
+        <p>完了した回答の本文。ここは折りたたみ対象。</p>
+      </div>
+    </div>
+    <div class="flex">
+      <button data-testid="copy-turn-action-button" aria-label="Copy">copy</button>
+    </div>
+  </article>
+
+  <article data-testid="conversation-turn-3">
+    <div data-message-author-role="assistant" data-message-streaming="true">
+      <div class="markdown">
+        <p>生成中の回答（未完了）。トグルを付けてはいけない。</p>
+      </div>
+    </div>
+  </article>
+</main>

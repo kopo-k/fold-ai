@@ -1,0 +1,6 @@
+dist/
+artifacts/
+coverage/
+safari/
+pnpm-lock.yaml
+CLAUDE.md

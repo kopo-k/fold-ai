@@ -1,4 +1,5 @@
 <!-- Claude の DOM スナップショット（実 DOM 2026-08 準拠・簡略版）。 -->
+<!-- .font-claude-response-body は段落ごとのクラス。.standard-markdown が本文コンテナ。 -->
 <div class="conversation">
   <div data-testid="user-message">
     <p>ユーザーの発言</p>
@@ -6,20 +7,18 @@
 
   <div class="group/message-row" data-is-streaming="false">
     <div class="font-claude-response">
-      <div class="font-claude-response-body">
-        <div class="standard-markdown">
-          <p>完了した Claude の回答。折りたたみ対象。</p>
-        </div>
+      <div class="standard-markdown">
+        <p class="font-claude-response-body">完了した Claude の回答・第1段落。折りたたみ対象。</p>
+        <h3>見出し</h3>
+        <p class="font-claude-response-body">完了した Claude の回答・第2段落。</p>
       </div>
     </div>
   </div>
 
   <div class="group/message-row" data-is-streaming="true">
     <div class="font-claude-response">
-      <div class="font-claude-response-body">
-        <div class="standard-markdown">
-          <p>生成中の回答。未完了なので触らない。</p>
-        </div>
+      <div class="standard-markdown">
+        <p class="font-claude-response-body">生成中の回答。未完了なので触らない。</p>
       </div>
     </div>
   </div>

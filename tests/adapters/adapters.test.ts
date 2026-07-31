@@ -45,8 +45,19 @@ describe('chatgpt adapter', () => {
 describe('claude adapter', () => {
   beforeEach(() => mountFixture('claude'))
 
-  it('finds assistant messages only', () => {
-    expect(claudeAdapter.findMessages(document)).toHaveLength(2)
+  it('finds one element per assistant response, not per paragraph', () => {
+    const messages = claudeAdapter.findMessages(document)
+    // .font-claude-response-body は段落ごとに付くが、拾うのは応答ラッパ単位（2件）。
+    expect(messages).toHaveLength(2)
+    messages.forEach((m) => expect(m.classList.contains('font-claude-response')).toBe(true))
+  })
+
+  it('anchors to the whole markdown body (.standard-markdown), not a paragraph', () => {
+    const [done] = claudeAdapter.findMessages(document)
+    const anchor = claudeAdapter.anchorFor(done!)
+    expect(anchor?.classList.contains('standard-markdown')).toBe(true)
+    // 本文コンテナには複数段落が含まれる（＝段落単位ではない）。
+    expect(anchor!.querySelectorAll('p').length).toBeGreaterThan(1)
   })
 
   it('treats data-is-streaming="true" as incomplete', () => {

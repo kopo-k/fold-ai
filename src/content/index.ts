@@ -11,9 +11,13 @@ import { createToggle, type ToggleHandle } from './ui/toggle'
 import { matchesShortcut } from './shortcut'
 
 interface Entry {
+  el: HTMLElement
   fold: FoldHandle
-  toggle: ToggleHandle
-  /** keepLastExpanded のために「最新なので展開のままにした」ものを記録する。 */
+  // 先頭・末尾の 2 つのトグルを持つ。状態は常に同期する。
+  toggles: ToggleHandle[]
+  // スクロール追従の基準にする先頭トグルのホスト要素。
+  topHost: HTMLElement
+  // keepLastExpanded のために「最新なので展開のままにした」ものを記録する。
   keptExpanded: boolean
 }
 
@@ -25,6 +29,20 @@ function siteEnabled(current: Settings): boolean {
   const host = location.host
   // 未知ホストは既定で有効。既知ホストは設定に従う。
   return current.perSiteEnabled[host] !== false
+}
+
+/**
+ * 折りたたみ状態を適用し、両トグルの表示も同期する。
+ * userInitiated かつ折りたたみのときは、回答の先頭が画面外にあれば
+ * 先頭へスクロール追従する（末尾のトグルから畳んでも空白に取り残されない）。
+ */
+function applyCollapsed(entry: Entry, collapsed: boolean, userInitiated: boolean): void {
+  entry.fold.setCollapsed(collapsed)
+  for (const toggle of entry.toggles) toggle.setCollapsed(collapsed)
+  if (collapsed && userInitiated) {
+    const rect = entry.topHost.getBoundingClientRect()
+    if (rect.top < 0) entry.topHost.scrollIntoView({ block: 'start' })
+  }
 }
 
 /** 完了済み・未処理のメッセージにトグルを取り付ける。 */
@@ -48,22 +66,54 @@ function attach(el: HTMLElement, isLatest: boolean): void {
 
   el.setAttribute(PROCESSED_ATTR, adapter.id)
 
-  const shouldAutoFold = settings.autoFold && exceedsThreshold(anchor, settings.foldThreshold)
-  const keptExpanded = isLatest && settings.keepLastExpanded && shouldAutoFold
-  const collapsed = shouldAutoFold && !keptExpanded
+  // 高さ測定のため、まず展開状態で取り付ける。
+  const fold = createFold(anchor, false)
 
-  const fold = createFold(anchor, collapsed)
-  const toggle = createToggle(collapsed, (next) => fold.setCollapsed(next))
-  // アンカーの直前にトグルを挿入する（折りたたみでトグル自身が隠れないように）。
-  anchor.parentNode.insertBefore(toggle.host, anchor)
+  const entry: Entry = {
+    el,
+    fold,
+    toggles: [],
+    topHost: document.createElement('span'),
+    keptExpanded: false,
+  }
+  const onUserToggle = (next: boolean): void => applyCollapsed(entry, next, true)
 
-  const entry: Entry = { fold, toggle, keptExpanded }
+  const topToggle = createToggle(false, onUserToggle)
+  const bottomToggle = createToggle(false, onUserToggle)
+  entry.toggles = [topToggle, bottomToggle]
+  entry.topHost = topToggle.host
+
+  // 先頭（アンカーの直前）と末尾（アンカーの直後）にトグルを差し込む。
+  anchor.parentNode.insertBefore(topToggle.host, anchor)
+  anchor.parentNode.insertBefore(bottomToggle.host, anchor.nextSibling)
+
   entries.set(el, entry)
 
-  // 直前まで「最新なので展開」にしていたものは、新しい回答が来た時点で折りたたむ。
+  // レイアウト確定後に自動折りたたみを判定する。
+  decideAutoFold(entry, anchor, isLatest)
+
+  // 新しい回答が来たら、直前まで「最新なので展開」にしていたものを折りたたむ。
   if (isLatest && settings.keepLastExpanded) {
     collapsePreviouslyLatest(el)
   }
+}
+
+/**
+ * 自動折りたたみの判定。未レイアウト（scrollHeight===0）の場合は次フレームで
+ * 再試行し、オフスクリーンや描画遅延による取りこぼしを防ぐ。
+ */
+function decideAutoFold(entry: Entry, anchor: HTMLElement, isLatest: boolean, attempt = 0): void {
+  if (!settings || !settings.autoFold) return
+  if (anchor.scrollHeight === 0 && attempt < 5) {
+    requestAnimationFrame(() => decideAutoFold(entry, anchor, isLatest, attempt + 1))
+    return
+  }
+  if (!exceedsThreshold(anchor, settings.foldThreshold)) return
+  if (isLatest && settings.keepLastExpanded) {
+    entry.keptExpanded = true // 最新は展開のまま
+    return
+  }
+  applyCollapsed(entry, true, false)
 }
 
 function collapsePreviouslyLatest(current: HTMLElement): void {
@@ -71,8 +121,7 @@ function collapsePreviouslyLatest(current: HTMLElement): void {
   for (const [el, entry] of entries) {
     if (el === current) continue
     if (entry.keptExpanded && !entry.fold.isCollapsed()) {
-      entry.fold.setCollapsed(true)
-      entry.toggle.setCollapsed(true)
+      applyCollapsed(entry, true, false)
     }
     entry.keptExpanded = false
   }
@@ -80,16 +129,13 @@ function collapsePreviouslyLatest(current: HTMLElement): void {
 
 /** 取り付け済みの全メッセージをまとめて折りたたむ／展開する。 */
 function toggleAll(collapse: boolean): void {
-  for (const entry of entries.values()) {
-    entry.fold.setCollapsed(collapse)
-    entry.toggle.setCollapsed(collapse)
-  }
+  for (const entry of entries.values()) applyCollapsed(entry, collapse, false)
 }
 
 /** すべての取り付けを解除し、ホスト DOM を元へ戻す。無効化時に呼ぶ。 */
 function teardownAll(): void {
   for (const [el, entry] of entries) {
-    entry.toggle.remove()
+    for (const toggle of entry.toggles) toggle.remove()
     entry.fold.release()
     el.removeAttribute(PROCESSED_ATTR)
   }

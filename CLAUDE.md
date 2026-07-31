@@ -11,7 +11,7 @@
 - ライセンス: MIT
 - 対象ブラウザ: Chrome / Edge (Manifest V3)、Firefox、Safari 16.4 以降 (macOS / iOS)
 - API 呼び出しは `webextension-polyfill` の `browser.*` に統一する（`chrome.*` を直接使わない）
-- 対応サイト: ChatGPT / Claude / Gemini / Perplexity（アダプタ方式で追加可能）
+- 対応サイト: ChatGPT / Claude / Gemini（アダプタ方式で追加可能）
 - 外部通信は一切行わない。テレメトリ・解析・リモート設定を追加しないこと
 
 ## 開発コマンド
@@ -43,7 +43,6 @@ src/
     chatgpt.ts
     claude.ts
     gemini.ts
-    perplexity.ts
     index.ts        location.host からアダプタを解決
   options/          設定ページ（設定項目はここに集約）
   shared/

@@ -16,7 +16,6 @@ labels: bug
 - [ ] ChatGPT (chatgpt.com)
 - [ ] Claude (claude.ai)
 - [ ] Gemini (gemini.google.com)
-- [ ] Perplexity (www.perplexity.ai)
 - [ ] Other:
 
 ## Environment / 環境

@@ -4,7 +4,6 @@ import { resolveAdapter } from '@/adapters'
 import { chatgptAdapter } from '@/adapters/chatgpt'
 import { claudeAdapter } from '@/adapters/claude'
 import { geminiAdapter } from '@/adapters/gemini'
-import { perplexityAdapter } from '@/adapters/perplexity'
 
 describe('resolveAdapter', () => {
   it('resolves each known host to the right adapter', () => {
@@ -12,7 +11,6 @@ describe('resolveAdapter', () => {
     expect(resolveAdapter('chat.openai.com')?.id).toBe('chatgpt')
     expect(resolveAdapter('claude.ai')?.id).toBe('claude')
     expect(resolveAdapter('gemini.google.com')?.id).toBe('gemini')
-    expect(resolveAdapter('www.perplexity.ai')?.id).toBe('perplexity')
   })
 
   it('returns null for unknown hosts', () => {
@@ -70,37 +68,18 @@ describe('claude adapter', () => {
 describe('gemini adapter', () => {
   beforeEach(() => mountFixture('gemini'))
 
-  it('finds model responses', () => {
+  it('finds one element per model response', () => {
     expect(geminiAdapter.findMessages(document)).toHaveLength(2)
   })
 
-  it('requires data-response-complete="true" for completion', () => {
+  it('treats a generating response (blinking cursor) as incomplete', () => {
     const [done, streaming] = geminiAdapter.findMessages(document)
     expect(geminiAdapter.isComplete(done!)).toBe(true)
     expect(geminiAdapter.isComplete(streaming!)).toBe(false)
   })
 
-  it('anchors to message-content', () => {
+  it('anchors to the model-response-text body', () => {
     const [done] = geminiAdapter.findMessages(document)
-    expect(geminiAdapter.anchorFor(done!)?.tagName.toLowerCase()).toBe('message-content')
-  })
-})
-
-describe('perplexity adapter', () => {
-  beforeEach(() => mountFixture('perplexity'))
-
-  it('finds answer blocks', () => {
-    expect(perplexityAdapter.findMessages(document)).toHaveLength(2)
-  })
-
-  it('treats data-streaming="true" as incomplete', () => {
-    const [done, streaming] = perplexityAdapter.findMessages(document)
-    expect(perplexityAdapter.isComplete(done!)).toBe(true)
-    expect(perplexityAdapter.isComplete(streaming!)).toBe(false)
-  })
-
-  it('anchors to the prose body', () => {
-    const [done] = perplexityAdapter.findMessages(document)
-    expect(perplexityAdapter.anchorFor(done!)?.classList.contains('prose')).toBe(true)
+    expect(geminiAdapter.anchorFor(done!)?.classList.contains('model-response-text')).toBe(true)
   })
 })

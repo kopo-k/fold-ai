@@ -3,7 +3,8 @@
 // 対象要素へのインラインスタイル付与のみで実現する。
 // display:none は使わない（テキスト検索とコピーを壊すため）。max-height + overflow:hidden を使う。
 
-const COLLAPSED_MAX_HEIGHT = '5.5rem'
+// 折りたたみ時に残す高さ。回答を識別できる程度（最初の1行強）だけ見せる。
+const COLLAPSED_MAX_HEIGHT = '2.75rem'
 
 export interface FoldHandle {
   /** 折りたたみ対象の要素。 */

@@ -8,7 +8,6 @@ const HOST_MATCHES = [
   'https://chat.openai.com/*',
   'https://claude.ai/*',
   'https://gemini.google.com/*',
-  'https://www.perplexity.ai/*',
 ]
 
 export default defineManifest({

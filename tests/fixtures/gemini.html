@@ -1,18 +1,35 @@
-<!-- Gemini の DOM スナップショット（簡略版）。 -->
+<!-- Gemini の DOM スナップショット（実 DOM 2026-08 準拠・簡略版）。 -->
 <div class="chat-container">
   <user-query>
-    <div>ユーザーの質問</div>
+    <div class="query-text">ユーザーの質問</div>
   </user-query>
 
-  <model-response data-response-complete="true">
-    <message-content>
-      <p>完了した Gemini の回答。折りたたみ対象。</p>
-    </message-content>
+  <model-response>
+    <div class="presented-response-container">
+      <div class="response-container-content">
+        <message-content class="model-response-text response-content">
+          <div class="markdown-main-panel">
+            <div class="md-content markdown">
+              <p>完了した Gemini の回答。折りたたみ対象。</p>
+            </div>
+          </div>
+        </message-content>
+      </div>
+    </div>
   </model-response>
 
   <model-response>
-    <message-content>
-      <p>生成中の回答（data-response-complete 未設定）。触らない。</p>
-    </message-content>
+    <div class="presented-response-container">
+      <div class="response-container-content">
+        <message-content class="model-response-text response-content">
+          <div class="markdown-main-panel">
+            <div class="md-content markdown">
+              <p>生成中の回答。</p>
+            </div>
+          </div>
+          <span class="blinking-cursor"></span>
+        </message-content>
+      </div>
+    </div>
   </model-response>
 </div>

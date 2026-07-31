@@ -5,7 +5,7 @@
 `fold-ai` は、AI チャットサービス上の回答ごとに折りたたみトグルを差し込み、
 長い会話を少ないスクロールで見返せるようにするブラウザ拡張機能です。
 
-- **対応サイト:** ChatGPT / Claude / Gemini / Perplexity（アダプタ方式で追加可能）
+- **対応サイト:** ChatGPT / Claude / Gemini（アダプタ方式で追加可能）
 - **対応ブラウザ:** Chrome / Edge（Manifest V3）、Firefox、Safari 16.4 以降（macOS / iOS）
 - **プライバシー:** 外部通信・テレメトリ・リモート設定なし。会話内容はページの外に出ません。
 - **ライセンス:** MIT

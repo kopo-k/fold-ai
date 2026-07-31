@@ -20,12 +20,13 @@ export const KNOWN_HOSTS = [
   'chat.openai.com',
   'claude.ai',
   'gemini.google.com',
-  'www.perplexity.ai',
 ] as const
 
 export const DEFAULT_SETTINGS: Settings = {
   autoFold: true,
-  foldThreshold: 20,
+  // 8 行を超える回答を自動で折りたたむ。旧既定(20)は高すぎて中程度の回答が
+  // 畳まれなかったため引き下げた。閾値は options ページで変更できる。
+  foldThreshold: 8,
   keepLastExpanded: true,
   shortcut: 'Alt+Shift+F',
   perSiteEnabled: Object.fromEntries(KNOWN_HOSTS.map((h) => [h, true])),

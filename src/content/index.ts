@@ -109,6 +109,10 @@ async function main(): Promise<void> {
   adapter = resolveAdapter(location.host)
   if (!adapter) return // 対象外ホストでは何もしない
 
+  // 注入が実行され、ホストがアダプタに一致したことを示すパンくず（非破壊・追加のみ）。
+  // デバッグ用途: DevTools で `document.documentElement.dataset.foldAi` を確認できる。
+  document.documentElement.setAttribute('data-fold-ai', adapter.id)
+
   settings = await loadSettings()
 
   // 権限未付与などで設定が取れなくてもデフォルトで動く（loadSettings がフォールバック）。

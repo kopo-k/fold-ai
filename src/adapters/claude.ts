@@ -1,10 +1,11 @@
 import type { Adapter } from './types'
 
 // Claude (claude.ai)
-// アシスタントメッセージは .font-claude-message を持つ。
+// アシスタント回答の本文は .font-claude-response-body。
+// （旧 .font-claude-message は廃止。実 DOM 2026-08 時点。）
 // ストリーミング中は祖先に data-is-streaming="true" が付く。
 
-const ASSISTANT_SELECTOR = '.font-claude-message'
+const ASSISTANT_SELECTOR = '.font-claude-response-body'
 
 export const claudeAdapter: Adapter = {
   id: 'claude',
@@ -25,6 +26,7 @@ export const claudeAdapter: Adapter = {
   },
 
   anchorFor(el) {
+    // 本文全体（.font-claude-response-body）を折りたたみ対象にする。
     return el
   },
 }

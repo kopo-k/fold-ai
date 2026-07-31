@@ -1,18 +1,26 @@
-<!-- Claude の DOM スナップショット（簡略版）。 -->
+<!-- Claude の DOM スナップショット（実 DOM 2026-08 準拠・簡略版）。 -->
 <div class="conversation">
   <div data-testid="user-message">
     <p>ユーザーの発言</p>
   </div>
 
-  <div data-is-streaming="false">
-    <div class="font-claude-message">
-      <p>完了した Claude の回答。折りたたみ対象。</p>
+  <div class="group/message-row" data-is-streaming="false">
+    <div class="font-claude-response">
+      <div class="font-claude-response-body">
+        <div class="standard-markdown">
+          <p>完了した Claude の回答。折りたたみ対象。</p>
+        </div>
+      </div>
     </div>
   </div>
 
-  <div data-is-streaming="true">
-    <div class="font-claude-message">
-      <p>生成中の回答。未完了なので触らない。</p>
+  <div class="group/message-row" data-is-streaming="true">
+    <div class="font-claude-response">
+      <div class="font-claude-response-body">
+        <div class="standard-markdown">
+          <p>生成中の回答。未完了なので触らない。</p>
+        </div>
+      </div>
     </div>
   </div>
 </div>

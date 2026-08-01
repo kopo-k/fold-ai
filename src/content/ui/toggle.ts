@@ -60,6 +60,12 @@ ${
   // ホバー前提の UI を作らない。タッチ端末では常にヒット領域を広めに。
   isIOS ? 'button { min-width: 44px; }' : ''
 }
+@media (prefers-reduced-motion: reduce) {
+  .icon,
+  button {
+    transition: none;
+  }
+}
 `
 
 /**

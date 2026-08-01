@@ -29,7 +29,8 @@ const STYLES = `
   all: initial;
   position: fixed;
   top: 50%;
-  right: 6px;
+  /* ブラウザ／サイトのスクロールバーと重ならないよう内側へ寄せる。 */
+  right: 18px;
   transform: translateY(-50%);
   z-index: 2147483646;
   font-family: system-ui, -apple-system, sans-serif;
@@ -38,44 +39,50 @@ const STYLES = `
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 3px;
+  gap: 4px;
   padding: 6px 4px;
   border-radius: 10px;
-  background: color-mix(in srgb, currentColor 5%, transparent);
-  opacity: 0.55;
+  background: color-mix(in srgb, currentColor 6%, transparent);
+  opacity: 0.7;
   transition: opacity 0.15s ease;
 }
 .rail:hover {
   opacity: 1;
-  background: color-mix(in srgb, currentColor 10%, transparent);
+  background: color-mix(in srgb, currentColor 12%, transparent);
 }
 button.seg {
   all: unset;
   box-sizing: border-box;
   display: block;
-  width: 6px;
-  border-radius: 3px;
+  width: 7px;
+  border-radius: 4px;
   cursor: pointer;
-  background: color-mix(in srgb, currentColor 30%, transparent);
+  background: color-mix(in srgb, currentColor 45%, transparent);
   transition:
     width 0.12s ease,
     background 0.12s ease;
-  /* タッチ／クリックのヒット領域を縦方向に広げる（見た目は細いまま）。 */
+  /* タッチ／クリックのヒット領域を上下左右に広げる（見た目は細いまま）。 */
   position: relative;
 }
 button.seg::after {
   content: '';
   position: absolute;
-  inset: -3px -8px;
+  inset: -4px -10px;
 }
 button.seg[data-collapsed='true'] {
-  background: color-mix(in srgb, currentColor 65%, transparent);
+  background: color-mix(in srgb, currentColor 75%, transparent);
 }
 button.seg:hover,
 button.seg:focus-visible {
-  width: 14px;
+  width: 16px;
   background: currentColor;
   outline: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rail,
+  button.seg {
+    transition: none;
+  }
 }
 `
 
@@ -106,7 +113,8 @@ export function createMinimap(): MinimapHandle {
     const total = heights.reduce((a, b) => a + b, 0) + gap * (items.length - 1)
     if (total > maxRail) {
       const f = maxRail / total
-      for (let i = 0; i < heights.length; i++) heights[i] = Math.max(4, heights[i]! * f)
+      // 縮小時もクリックできる最小高さ(8px)を確保する（フィッツの法則）。
+      for (let i = 0; i < heights.length; i++) heights[i] = Math.max(8, heights[i]! * f)
     }
 
     rail.replaceChildren()

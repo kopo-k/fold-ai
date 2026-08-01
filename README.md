@@ -10,6 +10,7 @@ scrolling.
 - **Browsers:** Chrome / Edge (Manifest V3), Firefox, Safari 16.4+ (macOS / iOS)
 - **Privacy:** no external requests, no telemetry, no remote config. Your conversations never leave the page.
 - **License:** MIT
+- **Website:** https://kopo-k.github.io/fold-ai/
 
 日本語版は [README.ja.md](./README.ja.md) を参照してください。
 

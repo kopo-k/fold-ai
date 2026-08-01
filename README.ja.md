@@ -9,6 +9,7 @@
 - **対応ブラウザ:** Chrome / Edge（Manifest V3）、Firefox、Safari 16.4 以降（macOS / iOS）
 - **プライバシー:** 外部通信・テレメトリ・リモート設定なし。会話内容はページの外に出ません。
 - **ライセンス:** MIT
+- **ウェブサイト:** https://kopo-k.github.io/fold-ai/
 
 ## 主な機能
 

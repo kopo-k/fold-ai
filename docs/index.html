@@ -1,0 +1,926 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>fold-ai — 長いAIの回答は、たたんでおく。</title>
+    <meta
+      name="description"
+      content="ChatGPT・Claude・Gemini の長い回答に折りたたみを追加するブラウザ拡張機能。右端のミニマップからどこでも開閉。外部通信ゼロ・オープンソース（MIT）。"
+    />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Crect width='128' height='128' rx='28' fill='%234f46e5'/%3E%3Cg stroke='white' stroke-width='11' stroke-linecap='round'%3E%3Cline x1='37' y1='44' x2='91' y2='44'/%3E%3Cline x1='37' y1='64' x2='91' y2='64'/%3E%3Cline x1='37' y1='84' x2='75' y2='84'/%3E%3C/g%3E%3C/svg%3E" />
+    <style>
+      :root {
+        --paper: #fcfcfd;
+        --panel: #ffffff;
+        --panel-2: #f3f4f8;
+        --ink: #14161b;
+        --muted: #5c626e;
+        --faint: #8b909c;
+        --line: #e3e5ec;
+        --line-strong: #cdd0da;
+        --accent: #4f46e5;
+        --accent-weak: rgba(79, 70, 229, 0.09);
+        --ok: #157347;
+        --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
+          monospace;
+        --sans: system-ui, -apple-system, "Segoe UI", "Hiragino Kaku Gothic ProN", "Noto Sans JP",
+          Meiryo, sans-serif;
+        --maxw: 980px;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --paper: #0b0c0f;
+          --panel: #121419;
+          --panel-2: #171a21;
+          --ink: #e9eaef;
+          --muted: #9aa0ac;
+          --faint: #6b7180;
+          --line: #23262e;
+          --line-strong: #333743;
+          --accent: #8b93f8;
+          --accent-weak: rgba(139, 147, 248, 0.13);
+          --ok: #4ade80;
+        }
+      }
+      :root[data-theme="light"] {
+        --paper: #fcfcfd;
+        --panel: #ffffff;
+        --panel-2: #f3f4f8;
+        --ink: #14161b;
+        --muted: #5c626e;
+        --faint: #8b909c;
+        --line: #e3e5ec;
+        --line-strong: #cdd0da;
+        --accent: #4f46e5;
+        --accent-weak: rgba(79, 70, 229, 0.09);
+        --ok: #157347;
+      }
+      :root[data-theme="dark"] {
+        --paper: #0b0c0f;
+        --panel: #121419;
+        --panel-2: #171a21;
+        --ink: #e9eaef;
+        --muted: #9aa0ac;
+        --faint: #6b7180;
+        --line: #23262e;
+        --line-strong: #333743;
+        --accent: #8b93f8;
+        --accent-weak: rgba(139, 147, 248, 0.13);
+        --ok: #4ade80;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+      }
+      body {
+        margin: 0;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 16px;
+        line-height: 1.7;
+        -webkit-font-smoothing: antialiased;
+      }
+      .wrap {
+        max-width: var(--maxw);
+        margin-inline: auto;
+        padding-inline: 22px;
+      }
+      a {
+        color: var(--accent);
+        text-underline-offset: 3px;
+      }
+      code,
+      kbd {
+        font-family: var(--mono);
+      }
+      kbd {
+        font-size: 0.82em;
+        background: var(--panel-2);
+        border: 1px solid var(--line-strong);
+        border-bottom-width: 2px;
+        border-radius: 5px;
+        padding: 1px 6px;
+        color: var(--ink);
+        white-space: nowrap;
+      }
+      .mono {
+        font-family: var(--mono);
+      }
+
+      /* eyebrow / section label */
+      .label {
+        font-family: var(--mono);
+        font-size: 0.73rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--faint);
+      }
+
+      /* ---------- top bar ---------- */
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        background: color-mix(in srgb, var(--paper) 86%, transparent);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid transparent;
+      }
+      .topbar[data-stuck="true"] {
+        border-bottom-color: var(--line);
+      }
+      .topbar-in {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        height: 56px;
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        font-weight: 640;
+        letter-spacing: -0.01em;
+        text-decoration: none;
+        color: var(--ink);
+      }
+      .brand svg {
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        display: block;
+      }
+      .brand .v {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        color: var(--faint);
+        font-weight: 400;
+        margin-left: 2px;
+      }
+      .top-links {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .top-links a {
+        color: var(--muted);
+        text-decoration: none;
+        font-size: 0.88rem;
+        padding: 7px 11px;
+        border-radius: 7px;
+      }
+      .top-links a:hover {
+        color: var(--ink);
+        background: var(--panel-2);
+      }
+      .tbtn {
+        background: none;
+        border: 1px solid var(--line-strong);
+        color: var(--muted);
+        width: 34px;
+        height: 34px;
+        border-radius: 7px;
+        display: inline-grid;
+        place-items: center;
+        cursor: pointer;
+      }
+      .tbtn:hover {
+        color: var(--ink);
+      }
+
+      /* ---------- buttons ---------- */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font: inherit;
+        font-size: 0.9rem;
+        font-weight: 560;
+        text-decoration: none;
+        padding: 10px 16px;
+        border-radius: 8px;
+        border: 1px solid var(--accent);
+        background: var(--accent);
+        color: #fff;
+        cursor: pointer;
+        transition: filter 0.15s ease;
+      }
+      :root[data-theme="dark"] .btn,
+      .btn {
+        color: #fff;
+      }
+      @media (prefers-color-scheme: dark) {
+        .btn {
+          color: #0b0c0f;
+        }
+      }
+      :root[data-theme="dark"] .btn {
+        color: #0b0c0f;
+      }
+      :root[data-theme="light"] .btn {
+        color: #fff;
+      }
+      .btn:hover {
+        filter: brightness(1.08);
+      }
+      .btn.ghost {
+        background: transparent;
+        border-color: var(--line-strong);
+        color: var(--ink);
+      }
+      .btn.ghost:hover {
+        filter: none;
+        background: var(--panel-2);
+      }
+
+      /* ---------- hero ---------- */
+      .hero {
+        padding-top: clamp(44px, 7vw, 84px);
+        padding-bottom: clamp(36px, 5vw, 56px);
+      }
+      .hero-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: clamp(28px, 5vw, 56px);
+        align-items: center;
+      }
+      .hero h1 {
+        font-size: clamp(2.1rem, 5vw, 3.3rem);
+        line-height: 1.08;
+        letter-spacing: -0.03em;
+        font-weight: 700;
+        margin: 16px 0 0;
+        text-wrap: balance;
+      }
+      .hero h1 em {
+        font-style: normal;
+        color: var(--accent);
+      }
+      .hero .lede {
+        color: var(--muted);
+        font-size: 1.05rem;
+        margin: 18px 0 0;
+        max-width: 30em;
+      }
+      .spec-line {
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        color: var(--faint);
+        margin: 20px 0 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 14px;
+      }
+      .spec-line b {
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .cta-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 11px;
+        margin-top: 26px;
+      }
+      .cta-sub {
+        margin-top: 13px;
+        font-size: 0.82rem;
+        color: var(--faint);
+      }
+
+      /* ---------- demo ---------- */
+      .frame {
+        border: 1px solid var(--line-strong);
+        border-radius: 10px;
+        overflow: hidden;
+        background: var(--panel);
+      }
+      .frame-bar {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 9px 13px;
+        border-bottom: 1px solid var(--line);
+        background: var(--panel-2);
+      }
+      .frame-bar i {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--line-strong);
+        display: block;
+      }
+      .frame-bar .u {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        color: var(--faint);
+        margin-left: 8px;
+      }
+      .stage {
+        display: grid;
+        grid-template-columns: 1fr 26px;
+        gap: 4px;
+        padding: 16px 8px 16px 16px;
+        height: 380px;
+      }
+      .thread {
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        gap: 13px;
+        padding-right: 4px;
+      }
+      .u-msg {
+        align-self: flex-end;
+        max-width: 80%;
+        background: var(--panel-2);
+        border: 1px solid var(--line);
+        border-radius: 12px 12px 3px 12px;
+        padding: 8px 12px;
+        font-size: 0.84rem;
+      }
+      .answer {
+        border-left: 2px solid var(--line);
+        padding-left: 12px;
+      }
+      .ft {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font: inherit;
+        font-family: var(--mono);
+        font-size: 0.76rem;
+        font-weight: 500;
+        color: var(--ink);
+        background: var(--accent-weak);
+        border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+        border-radius: 6px;
+        padding: 4px 9px;
+        margin-bottom: 8px;
+        cursor: pointer;
+      }
+      .ft .ar {
+        width: 9px;
+        text-align: center;
+      }
+      .answer.collapsed .ft {
+        background: color-mix(in srgb, var(--accent) 20%, transparent);
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 32%, transparent);
+      }
+      .ft.linked {
+        box-shadow: 0 0 0 2px var(--accent);
+      }
+      .abody {
+        font-size: 0.84rem;
+        color: var(--muted);
+        overflow: hidden;
+        max-height: 320px;
+        transition: max-height 0.32s ease;
+      }
+      .abody h4 {
+        margin: 0 0 0.35em;
+        font-size: 0.9rem;
+        color: var(--ink);
+      }
+      .abody p {
+        margin: 0 0 0.6em;
+      }
+      .answer.collapsed .abody {
+        max-height: 2.9em;
+        -webkit-mask-image: linear-gradient(to bottom, #000 42%, transparent);
+        mask-image: linear-gradient(to bottom, #000 42%, transparent);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .abody {
+          transition: none;
+        }
+      }
+      .mmap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        align-self: center;
+      }
+      .seg {
+        width: 6px;
+        border: 0;
+        padding: 0;
+        border-radius: 3px;
+        background: color-mix(in srgb, var(--ink) 30%, transparent);
+        cursor: pointer;
+        transition:
+          width 0.12s ease,
+          background 0.12s ease;
+      }
+      .seg:hover,
+      .seg.active {
+        width: 14px;
+        background: var(--accent);
+      }
+      .seg.collapsed {
+        background: color-mix(in srgb, var(--ink) 58%, transparent);
+      }
+      .seg.active {
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 32%, transparent);
+      }
+      .demo-cap {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        color: var(--faint);
+        margin-top: 10px;
+      }
+
+      /* ---------- fold-line divider (signature) ---------- */
+      .rule {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        color: var(--faint);
+        margin: 6px 0;
+      }
+      .rule::before,
+      .rule::after {
+        content: "";
+        height: 1px;
+        background: var(--line);
+        flex: 1;
+      }
+      .rule span {
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+
+      /* ---------- sections ---------- */
+      section {
+        padding-block: clamp(48px, 7vw, 84px);
+      }
+      .sec-head h2 {
+        font-size: clamp(1.5rem, 3vw, 2.1rem);
+        letter-spacing: -0.02em;
+        font-weight: 680;
+        margin: 10px 0 0;
+      }
+      .sec-head p {
+        color: var(--muted);
+        margin: 10px 0 0;
+        max-width: 42em;
+      }
+
+      /* feature spec list */
+      .spec {
+        margin-top: 34px;
+        border-top: 1px solid var(--line);
+      }
+      .spec-row {
+        display: grid;
+        grid-template-columns: 210px 1fr;
+        gap: 20px;
+        padding: 20px 4px;
+        border-bottom: 1px solid var(--line);
+        align-items: baseline;
+      }
+      .spec-row:hover {
+        background: var(--panel-2);
+      }
+      .spec-row .rt {
+        display: flex;
+        gap: 12px;
+        align-items: baseline;
+      }
+      .spec-row .num {
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        color: var(--faint);
+      }
+      .spec-row h3 {
+        font-size: 1rem;
+        font-weight: 620;
+        margin: 0;
+      }
+      .spec-row .rd {
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .spec-row .rd b {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      /* permissions table */
+      .perm-grid {
+        display: grid;
+        grid-template-columns: 1.05fr 0.95fr;
+        gap: clamp(24px, 4vw, 48px);
+        align-items: start;
+      }
+      table.perm {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+      }
+      table.perm th {
+        text-align: left;
+        font-family: var(--mono);
+        font-size: 0.7rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--faint);
+        font-weight: 500;
+        padding: 0 0 10px;
+        border-bottom: 1px solid var(--line-strong);
+      }
+      table.perm td {
+        padding: 12px 0;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      table.perm td.k {
+        font-family: var(--mono);
+        color: var(--ink);
+        white-space: nowrap;
+        padding-right: 16px;
+      }
+      table.perm td.d {
+        color: var(--muted);
+      }
+      .checks {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 13px;
+      }
+      .checks li {
+        display: flex;
+        gap: 11px;
+        align-items: flex-start;
+        color: var(--ink);
+        font-size: 0.96rem;
+      }
+      .checks svg {
+        flex: none;
+        margin-top: 4px;
+        color: var(--accent);
+      }
+      .checks code {
+        background: var(--panel-2);
+        padding: 1px 5px;
+        border-radius: 4px;
+        font-size: 0.86em;
+      }
+
+      /* closer */
+      .band {
+        border: 1px solid var(--line-strong);
+        border-radius: 12px;
+        background: var(--panel);
+        padding: clamp(28px, 5vw, 48px);
+      }
+      .band h2 {
+        font-size: clamp(1.5rem, 3vw, 2.1rem);
+        letter-spacing: -0.02em;
+        margin: 6px 0 0;
+        font-weight: 700;
+      }
+      .band p {
+        color: var(--muted);
+        margin: 10px 0 0;
+        max-width: 40em;
+      }
+      .sites {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 20px 0 0;
+      }
+      .chip {
+        font-family: var(--mono);
+        font-size: 0.82rem;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 6px 12px;
+        color: var(--ink);
+        background: var(--panel-2);
+      }
+      .chip.more {
+        color: var(--faint);
+      }
+
+      footer {
+        border-top: 1px solid var(--line);
+        margin-top: 20px;
+      }
+      .foot {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        align-items: center;
+        padding-block: 26px;
+        color: var(--faint);
+        font-size: 0.84rem;
+      }
+      .foot .foot-links {
+        margin-left: auto;
+        display: flex;
+        gap: 16px;
+      }
+      .foot a {
+        color: var(--muted);
+        text-decoration: none;
+      }
+      .foot a:hover {
+        color: var(--ink);
+      }
+
+      @media (max-width: 860px) {
+        .hero-grid,
+        .perm-grid {
+          grid-template-columns: 1fr;
+        }
+        .spec-row {
+          grid-template-columns: 1fr;
+          gap: 6px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar" id="topbar">
+      <div class="wrap topbar-in">
+        <a class="brand" href="#top">
+          <svg viewBox="0 0 128 128" aria-hidden="true">
+            <rect width="128" height="128" rx="28" fill="#4f46e5" />
+            <g stroke="#fff" stroke-width="11" stroke-linecap="round">
+              <line x1="37" y1="44" x2="91" y2="44" />
+              <line x1="37" y1="64" x2="91" y2="64" />
+              <line x1="37" y1="84" x2="75" y2="84" />
+            </g>
+          </svg>
+          fold-ai<span class="v">v0.1.0</span>
+        </a>
+        <nav class="top-links">
+          <a href="#features">機能</a>
+          <a href="#privacy">プライバシー</a>
+          <a href="https://github.com/kopo-k/fold-ai" target="_blank" rel="noopener">GitHub</a>
+          <button class="tbtn" id="theme" aria-label="テーマ切り替え" title="テーマ切り替え">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 3v1.5M12 19.5V21M4.2 4.2l1 1M18.8 18.8l1 1M3 12h1.5M19.5 12H21M4.2 19.8l1-1M18.8 5.2l1-1"/></svg>
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <main id="top">
+      <!-- HERO -->
+      <section class="hero">
+        <div class="wrap hero-grid">
+          <div>
+            <p class="label">Browser extension · Manifest V3</p>
+            <h1>長いAIの回答は、<br /><em>たたんでおく。</em></h1>
+            <p class="lede">
+              ChatGPT・Claude・Gemini の回答ごとに折りたたみを追加。右端のミニマップから、
+              スクロールせずにどの回答でも開閉できます。会話は、どこにも送りません。
+            </p>
+            <p class="spec-line">
+              <span><b>MIT</b> license</span>
+              <span><b>0</b> network calls</span>
+              <span><b>no</b> framework · 素のDOM</span>
+              <span><b>storage</b> + 3 hosts</span>
+            </p>
+            <div class="cta-row">
+              <a class="btn" href="https://chromewebstore.google.com/detail/lmhphonmjgjplhimpiipodmlmeefdhgn" target="_blank" rel="noopener">Chrome に追加</a>
+              <a class="btn ghost" href="https://github.com/kopo-k/fold-ai" target="_blank" rel="noopener">GitHub で読む</a>
+            </div>
+            <p class="cta-sub">Chrome ウェブストア審査中 — 公開までは GitHub から読み込めます。</p>
+          </div>
+
+          <div>
+            <div class="frame" id="demo">
+              <div class="frame-bar">
+                <i></i><i></i><i></i><span class="u mono">chat.example.ai</span>
+              </div>
+              <div class="stage">
+                <div class="thread" id="thread">
+                  <div class="u-msg">AIチャットサービスについて長めに解説して</div>
+                  <div class="answer" data-i="0">
+                    <button class="ft" type="button" aria-expanded="true"><span class="ar">▾</span><span class="lbl">折りたたむ</span></button>
+                    <div class="abody">
+                      <h4>AIチャットサービスの仕組み</h4>
+                      <p>入力された文章を分析し、文脈に沿った回答を生成します。検索と違い、日常会話に近い形で質問や依頼ができます。</p>
+                      <p>要約・翻訳・アイデア出し・プログラミング支援など、用途は非常に幅広く…</p>
+                    </div>
+                  </div>
+                  <div class="u-msg">記憶と時間の話も長めに</div>
+                  <div class="answer" data-i="1">
+                    <button class="ft" type="button" aria-expanded="true"><span class="ar">▾</span><span class="lbl">折りたたむ</span></button>
+                    <div class="abody">
+                      <h4>なぜ時間は速く感じるのか</h4>
+                      <p>新しい経験が減ると記憶が薄くなり、後から振り返ると「短かった」と感じます。</p>
+                      <p>対策は、節目を作る・細部に注意を向ける・記録を残す…</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="mmap" id="mmap" aria-label="ミニマップ"></div>
+              </div>
+            </div>
+            <p class="demo-cap">▸ 触れます — トグルとミニマップで実際にたためます</p>
+          </div>
+        </div>
+      </section>
+
+      <div class="wrap"><div class="rule"><span>fold</span></div></div>
+
+      <!-- FEATURES -->
+      <section id="features">
+        <div class="wrap">
+          <div class="sec-head">
+            <p class="label">Features</p>
+            <h2>邪魔をせず、必要な操作だけ足す</h2>
+            <p>ホストページのDOMは壊さず、追加とスタイル付与だけで動きます。フレームワーク非依存。</p>
+          </div>
+
+          <div class="spec">
+            <div class="spec-row">
+              <div class="rt"><span class="num">01</span><h3>回答ごとのトグル</h3></div>
+              <div class="rd">各回答の先頭にワンクリックの開閉。<b>▾</b> 展開中／<b>▸</b> 折りたたみ中で状態がひと目で分かる。</div>
+            </div>
+            <div class="spec-row">
+              <div class="rt"><span class="num">02</span><h3>自動折りたたみ</h3></div>
+              <div class="rd">長い回答（既定 <b>8行</b> 超）は自動でたたむ。しきい値は設定で変更できる。</div>
+            </div>
+            <div class="spec-row">
+              <div class="rt"><span class="num">03</span><h3>右端ミニマップ</h3></div>
+              <div class="rd">1回答＝1セグメント。スクロールせずどの回答もその場で開閉でき、<b>今見ている位置</b>もハイライトされる。</div>
+            </div>
+            <div class="spec-row">
+              <div class="rt"><span class="num">04</span><h3>一括ショートカット</h3></div>
+              <div class="rd"><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> で全回答を一括開閉。画面のどこにいてもキー一発。</div>
+            </div>
+            <div class="spec-row">
+              <div class="rt"><span class="num">05</span><h3>サイトごと設定</h3></div>
+              <div class="rd">ChatGPT / Claude / Gemini を個別に ON / OFF。使いたいサイトだけで動かせる。</div>
+            </div>
+            <div class="spec-row">
+              <div class="rt"><span class="num">06</span><h3>検索・コピー維持</h3></div>
+              <div class="rd"><code>display:none</code> ではなく <code>max-height</code> で折りたたむため、たたんだ回答でも <b>ページ内検索とコピーが効く</b>。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="wrap"><div class="rule"><span>fold</span></div></div>
+
+      <!-- PRIVACY -->
+      <section id="privacy">
+        <div class="wrap">
+          <div class="sec-head">
+            <p class="label">Privacy</p>
+            <h2>会話は、どこにも送らない</h2>
+            <p>ネットワークリクエストを一切発行しません。解析・テレメトリ・リモート設定なし。保存するのは拡張の設定だけです。</p>
+          </div>
+
+          <div class="perm-grid" style="margin-top: 30px">
+            <ul class="checks">
+              <li>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                <span>外部サーバーへの通信は一切なし（会話も設定も送信しない）</span>
+              </li>
+              <li>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                <span>会話内容・Cookie・ログイン情報には触れない</span>
+              </li>
+              <li>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                <span><code>&lt;all_urls&gt;</code> も <code>tabs</code> 権限も要求しない</span>
+              </li>
+              <li>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                <span>ソースは全公開（MIT）。ビルドは <code>pnpm install &amp;&amp; pnpm build</code> だけ</span>
+              </li>
+            </ul>
+
+            <table class="perm">
+              <thead>
+                <tr><th>要求する権限</th><th>用途</th></tr>
+              </thead>
+              <tbody>
+                <tr><td class="k">storage</td><td class="d">拡張の設定を保存（しきい値・ショートカット・サイト別ON/OFF）</td></tr>
+                <tr><td class="k">chatgpt.com</td><td class="d">回答を検出しUIを挿入</td></tr>
+                <tr><td class="k">claude.ai</td><td class="d">同上</td></tr>
+                <tr><td class="k">gemini.google.com</td><td class="d">同上（必要最小限のホストのみ）</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- CLOSER -->
+      <section style="padding-top: 0">
+        <div class="wrap">
+          <div class="band">
+            <p class="label">Get started</p>
+            <h2>今日から、スクロールを減らす。</h2>
+            <p>対応サイトは ChatGPT・Claude・Gemini。アダプタ方式なので、対応はこれからも増やせます。</p>
+            <div class="sites">
+              <span class="chip">ChatGPT</span>
+              <span class="chip">Claude</span>
+              <span class="chip">Gemini</span>
+              <span class="chip more">+ アダプタで追加可能</span>
+            </div>
+            <div class="cta-row">
+              <a class="btn" href="https://chromewebstore.google.com/detail/lmhphonmjgjplhimpiipodmlmeefdhgn" target="_blank" rel="noopener">Chrome に追加</a>
+              <a class="btn ghost" href="https://github.com/kopo-k/fold-ai" target="_blank" rel="noopener">ソースを読む</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap foot">
+        <span class="mono">fold-ai · MIT · © 2026 fold-ai contributors</span>
+        <span class="foot-links">
+          <a href="https://github.com/kopo-k/fold-ai" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://github.com/kopo-k/fold-ai/blob/main/PRIVACY.md" target="_blank" rel="noopener">Privacy</a>
+          <a href="https://github.com/kopo-k/fold-ai/issues" target="_blank" rel="noopener">Support</a>
+        </span>
+      </div>
+    </footer>
+
+    <script>
+      const root = document.documentElement;
+      document.getElementById("theme").addEventListener("click", () => {
+        const dark = root.getAttribute("data-theme")
+          ? root.getAttribute("data-theme") === "dark"
+          : matchMedia("(prefers-color-scheme: dark)").matches;
+        root.setAttribute("data-theme", dark ? "light" : "dark");
+      });
+
+      const bar = document.getElementById("topbar");
+      const stick = () => bar.setAttribute("data-stuck", String(scrollY > 6));
+      stick();
+      addEventListener("scroll", stick, { passive: true });
+
+      // interactive fold demo
+      const answers = [...document.querySelectorAll(".answer")];
+      const mmap = document.getElementById("mmap");
+      const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      const segs = answers.map((a, i) => {
+        const s = document.createElement("button");
+        s.className = "seg";
+        s.type = "button";
+        s.style.height = i === 0 ? "32px" : "24px";
+        s.setAttribute("aria-label", "回答 " + (i + 1) + " を開閉");
+        s.addEventListener("click", () => set(i, !answers[i].classList.contains("collapsed")));
+        s.addEventListener("mouseenter", () => answers[i].querySelector(".ft").classList.add("linked"));
+        s.addEventListener("mouseleave", () => answers[i].querySelector(".ft").classList.remove("linked"));
+        mmap.appendChild(s);
+        return s;
+      });
+
+      function set(i, collapsed) {
+        const a = answers[i];
+        a.classList.toggle("collapsed", collapsed);
+        a.querySelector(".ft").setAttribute("aria-expanded", String(!collapsed));
+        a.querySelector(".ar").textContent = collapsed ? "▸" : "▾";
+        a.querySelector(".lbl").textContent = collapsed ? "展開する" : "折りたたむ";
+        segs[i].classList.toggle("collapsed", collapsed);
+      }
+      answers.forEach((a, i) =>
+        a.querySelector(".ft").addEventListener("click", () =>
+          set(i, !a.classList.contains("collapsed")),
+        ),
+      );
+
+      const thread = document.getElementById("thread");
+      function active() {
+        const base = thread.getBoundingClientRect().top + 36;
+        let idx = 0;
+        answers.forEach((a, i) => {
+          if (a.getBoundingClientRect().top <= base) idx = i;
+        });
+        segs.forEach((s, i) => s.classList.toggle("active", i === idx));
+      }
+      active();
+      thread.addEventListener("scroll", active, { passive: true });
+
+      if (!reduce) {
+        setTimeout(() => set(1, true), 1500);
+        setTimeout(() => set(1, false), 3300);
+      }
+    </script>
+  </body>
+</html>

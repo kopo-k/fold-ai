@@ -64,6 +64,19 @@ describe('minimap', () => {
     map.destroy()
   })
 
+  it('fires onHover on pointer enter/leave (for linked toggle highlight)', () => {
+    const map = createMinimap()
+    const host = document.querySelector<HTMLElement>('[data-fold-ai-minimap]')!
+    const onHover = vi.fn()
+    map.render([item({ onHover }), item()])
+    const [first] = segments(host)
+    first!.dispatchEvent(new Event('mouseenter'))
+    expect(onHover).toHaveBeenLastCalledWith(true)
+    first!.dispatchEvent(new Event('mouseleave'))
+    expect(onHover).toHaveBeenLastCalledWith(false)
+    map.destroy()
+  })
+
   it('destroy removes the host from the document', () => {
     const map = createMinimap()
     expect(document.querySelector('[data-fold-ai-minimap]')).not.toBeNull()

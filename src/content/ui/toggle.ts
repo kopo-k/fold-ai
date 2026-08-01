@@ -9,6 +9,8 @@ export interface ToggleHandle {
   readonly host: HTMLElement
   /** 表示状態を折りたたみ/展開へ更新する。 */
   setCollapsed(collapsed: boolean): void
+  /** ホバー相当のハイライトを付け外しする（ミニマップとの連動用）。 */
+  setHighlighted(on: boolean): void
   /** 要素を DOM から取り除く。 */
   remove(): void
 }
@@ -41,7 +43,8 @@ button {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
-button:hover {
+button:hover,
+:host([data-hover='true']) button {
   background: color-mix(in srgb, currentColor 12%, transparent);
 }
 button:focus-visible {
@@ -59,7 +62,8 @@ button:focus-visible {
   border-color: color-mix(in srgb, currentColor 45%, transparent);
   font-weight: 600;
 }
-:host([data-collapsed='true']) button:hover {
+:host([data-collapsed='true']) button:hover,
+:host([data-collapsed='true'][data-hover='true']) button {
   background: color-mix(in srgb, currentColor 28%, transparent);
 }
 ${
@@ -127,6 +131,10 @@ export function createToggle(
     setCollapsed(next) {
       state = next
       render()
+    },
+    setHighlighted(on) {
+      if (on) host.setAttribute('data-hover', 'true')
+      else host.removeAttribute('data-hover')
     },
     remove() {
       host.remove()

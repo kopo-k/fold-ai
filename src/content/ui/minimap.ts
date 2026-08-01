@@ -16,6 +16,8 @@ export interface MinimapItem {
   preview: string
   /** クリック時に呼ぶ。次の折りたたみ状態を受け取る。 */
   onToggle: (nextCollapsed: boolean) => void
+  /** ホバー／フォーカスの開始・終了を通知する（対応トグルの連動ハイライト用）。 */
+  onHover?: (hovering: boolean) => void
 }
 
 export interface MinimapHandle {
@@ -185,10 +187,18 @@ export function createMinimap(): MinimapHandle {
         ev.preventDefault()
         it.onToggle(!it.collapsed)
       })
-      seg.addEventListener('mouseenter', () => showPreview(seg, it.preview))
-      seg.addEventListener('focus', () => showPreview(seg, it.preview))
-      seg.addEventListener('mouseleave', hidePreview)
-      seg.addEventListener('blur', hidePreview)
+      const enter = (): void => {
+        showPreview(seg, it.preview)
+        it.onHover?.(true)
+      }
+      const leave = (): void => {
+        hidePreview()
+        it.onHover?.(false)
+      }
+      seg.addEventListener('mouseenter', enter)
+      seg.addEventListener('focus', enter)
+      seg.addEventListener('mouseleave', leave)
+      seg.addEventListener('blur', leave)
       rail.appendChild(seg)
       return seg
     })

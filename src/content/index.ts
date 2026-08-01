@@ -76,6 +76,8 @@ function refreshMinimap(): void {
       preview: text.slice(0, 200),
       // ミニマップからの操作: アニメーションあり・スクロールはしない（その場で開閉）。
       onToggle: (next: boolean) => applyCollapsed(entry, next, { animate: true }),
+      // セグメントのホバーで、対応する回答のトグルを連動ハイライトする。
+      onHover: (hovering: boolean) => entry.toggle.setHighlighted(hovering),
     })
   }
   minimap.render(items)

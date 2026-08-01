@@ -42,10 +42,18 @@ button {
   background: color-mix(in srgb, currentColor 6%, transparent);
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  transition:
+    background 0.1s ease,
+    box-shadow 0.1s ease;
 }
-button:hover,
-:host([data-hover='true']) button {
+button:hover {
   background: color-mix(in srgb, currentColor 12%, transparent);
+}
+/* ミニマップ連動ハイライト: 視線が右にあっても気づけるよう、通常ホバーより強く。
+   地色に依存しないリング＋濃い背景で必ず視認できるようにする。 */
+:host([data-hover='true']) button {
+  background: color-mix(in srgb, currentColor 24%, transparent);
+  box-shadow: 0 0 0 2px currentColor;
 }
 button:focus-visible {
   outline: 2px solid currentColor;
@@ -62,9 +70,12 @@ button:focus-visible {
   border-color: color-mix(in srgb, currentColor 45%, transparent);
   font-weight: 600;
 }
-:host([data-collapsed='true']) button:hover,
-:host([data-collapsed='true'][data-hover='true']) button {
+:host([data-collapsed='true']) button:hover {
   background: color-mix(in srgb, currentColor 28%, transparent);
+}
+:host([data-collapsed='true'][data-hover='true']) button {
+  background: color-mix(in srgb, currentColor 40%, transparent);
+  box-shadow: 0 0 0 2px currentColor;
 }
 ${
   // ホバー前提の UI を作らない。タッチ端末では常にヒット領域を広めに。

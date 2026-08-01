@@ -7,14 +7,23 @@
 const COLLAPSED_MAX_HEIGHT = '2.75rem'
 // 折りたたみ時、下端をフェードして「続きがある」ことを視覚的に示す（切り詰めのシグニファイア）。
 const FADE_MASK = 'linear-gradient(to bottom, #000 55%, transparent 100%)'
+// 開閉アニメーションの時間。
+const DURATION_MS = 180
 
 export interface FoldHandle {
   /** 折りたたみ対象の要素。 */
   readonly target: HTMLElement
   isCollapsed(): boolean
-  setCollapsed(collapsed: boolean): void
+  /** animate=true で高さをアニメーションさせる（既定は即時）。 */
+  setCollapsed(collapsed: boolean, animate?: boolean): void
   /** インラインスタイルを元に戻す。 */
   release(): void
+}
+
+function prefersReducedMotion(): boolean {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    : false
 }
 
 /**
@@ -31,41 +40,89 @@ export function createFold(target: HTMLElement, initialCollapsed: boolean): Fold
     webkitMaskImage: target.style.getPropertyValue('-webkit-mask-image'),
   }
 
-  const restoreMask = (): void => {
-    setOrRemove(target, 'mask-image', original.maskImage)
-    setOrRemove(target, '-webkit-mask-image', original.webkitMaskImage)
+  let collapsed = false
+  // 進行中アニメーションの後片付けを無効化するためのトークン。
+  let animToken = 0
+
+  const setMask = (on: boolean): void => {
+    if (on) {
+      target.style.setProperty('mask-image', FADE_MASK)
+      target.style.setProperty('-webkit-mask-image', FADE_MASK)
+    } else {
+      setOrRemove(target, 'mask-image', original.maskImage)
+      setOrRemove(target, '-webkit-mask-image', original.webkitMaskImage)
+    }
   }
 
-  let collapsed = false
-
-  const apply = (next: boolean): void => {
-    collapsed = next
+  // アニメーションなしで最終状態へ直接適用する。
+  const applyInstant = (next: boolean): void => {
     if (next) {
       target.style.overflow = 'hidden'
       target.style.maxHeight = COLLAPSED_MAX_HEIGHT
-      target.style.transition = 'max-height 0.15s ease'
-      // 下端フェードで続きの存在を示す。
-      target.style.setProperty('mask-image', FADE_MASK)
-      target.style.setProperty('-webkit-mask-image', FADE_MASK)
+      target.style.transition = original.transition
+      setMask(true)
     } else {
       target.style.overflow = original.overflow
       target.style.maxHeight = original.maxHeight
       target.style.transition = original.transition
-      restoreMask()
+      setMask(false)
     }
   }
 
-  apply(initialCollapsed)
+  // 高さをアニメーションさせて開閉する。
+  const animateTo = (next: boolean, fullPx: number): void => {
+    const token = ++animToken
+    const startHeight = next ? `${fullPx}px` : COLLAPSED_MAX_HEIGHT
+    const endHeight = next ? COLLAPSED_MAX_HEIGHT : `${fullPx}px`
+
+    target.style.overflow = 'hidden'
+    setMask(true) // アニメ中は常にフェードを出す
+    target.style.transition = 'none'
+    target.style.maxHeight = startHeight
+    void target.offsetHeight // リフローで開始値を確定させる
+
+    target.style.transition = `max-height ${DURATION_MS}ms ease`
+    requestAnimationFrame(() => {
+      if (token !== animToken) return
+      target.style.maxHeight = endHeight
+    })
+
+    const settle = (): void => {
+      if (token !== animToken) return
+      target.removeEventListener('transitionend', settle)
+      clearTimeout(timer)
+      // 展開後は max-height の制限を外し、以降のコンテンツ増加を妨げない。
+      applyInstant(next)
+    }
+    target.addEventListener('transitionend', settle)
+    const timer = setTimeout(settle, DURATION_MS + 60)
+  }
+
+  const setCollapsed = (next: boolean, animate = false): void => {
+    collapsed = next
+    const fullPx = target.scrollHeight
+    // レイアウト不能（scrollHeight===0）・低モーション・非アニメ指定は即時。
+    if (!animate || prefersReducedMotion() || fullPx === 0) {
+      animToken++ // 進行中アニメを無効化
+      applyInstant(next)
+      return
+    }
+    animateTo(next, fullPx)
+  }
+
+  applyInstant(initialCollapsed)
+  collapsed = initialCollapsed
 
   return {
     target,
     isCollapsed: () => collapsed,
-    setCollapsed: apply,
+    setCollapsed,
     release() {
+      animToken++
       target.style.maxHeight = original.maxHeight
       target.style.overflow = original.overflow
       target.style.transition = original.transition
-      restoreMask()
+      setMask(false)
     },
   }
 }

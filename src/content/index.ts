@@ -34,15 +34,22 @@ function siteEnabled(current: Settings): boolean {
   return current.perSiteEnabled[host] !== false
 }
 
+interface ApplyOpts {
+  /** 折りたたみ時、先頭が画面外なら先頭へスクロール追従する。 */
+  scroll?: boolean
+  /** 高さをアニメーションさせる（ユーザー操作時のみ true）。 */
+  animate?: boolean
+}
+
 /**
  * 折りたたみ状態を適用し、トグルの表示も同期する。
- * userInitiated かつ折りたたみのときは、回答の先頭が画面外（上方）にあれば
+ * scroll 指定かつ折りたたみのときは、回答の先頭が画面外（上方）にあれば
  * 先頭へスクロール追従する（畳んだ後に空白へ取り残されないようにする）。
  */
-function applyCollapsed(entry: Entry, collapsed: boolean, userInitiated: boolean): void {
-  entry.fold.setCollapsed(collapsed)
+function applyCollapsed(entry: Entry, collapsed: boolean, opts: ApplyOpts = {}): void {
+  entry.fold.setCollapsed(collapsed, opts.animate ?? false)
   entry.toggle.setCollapsed(collapsed)
-  if (collapsed && userInitiated) {
+  if (collapsed && opts.scroll) {
     const rect = entry.toggle.host.getBoundingClientRect()
     if (rect.top < 0) entry.toggle.host.scrollIntoView({ block: 'start' })
   }
@@ -67,7 +74,8 @@ function refreshMinimap(): void {
       ratio: entry.fold.target.scrollHeight || 0,
       label: text.slice(0, 40),
       preview: text.slice(0, 200),
-      onToggle: (next: boolean) => applyCollapsed(entry, next, false),
+      // ミニマップからの操作: アニメーションあり・スクロールはしない（その場で開閉）。
+      onToggle: (next: boolean) => applyCollapsed(entry, next, { animate: true }),
     })
   }
   minimap.render(items)
@@ -130,7 +138,9 @@ function attach(el: HTMLElement, isLatest: boolean): void {
 
   // eslint-disable-next-line prefer-const -- entry は onUserToggle から参照するため先に宣言する
   let entry: Entry
-  const onUserToggle = (next: boolean): void => applyCollapsed(entry, next, true)
+  // 先頭トグルからの操作: アニメーションあり＋スクロール追従。
+  const onUserToggle = (next: boolean): void =>
+    applyCollapsed(entry, next, { scroll: true, animate: true })
 
   const toggle = createToggle(false, onUserToggle)
   entry = { id: String(nextEntryId++), el, fold, toggle, keptExpanded: false }
@@ -164,7 +174,7 @@ function decideAutoFold(entry: Entry, anchor: HTMLElement, isLatest: boolean, at
     entry.keptExpanded = true // 最新は展開のまま
     return
   }
-  applyCollapsed(entry, true, false)
+  applyCollapsed(entry, true)
 }
 
 function collapsePreviouslyLatest(current: HTMLElement): void {
@@ -172,7 +182,7 @@ function collapsePreviouslyLatest(current: HTMLElement): void {
   for (const [el, entry] of entries) {
     if (el === current) continue
     if (entry.keptExpanded && !entry.fold.isCollapsed()) {
-      applyCollapsed(entry, true, false)
+      applyCollapsed(entry, true)
     }
     entry.keptExpanded = false
   }
@@ -180,7 +190,7 @@ function collapsePreviouslyLatest(current: HTMLElement): void {
 
 /** 取り付け済みの全メッセージをまとめて折りたたむ／展開する。 */
 function toggleAll(collapse: boolean): void {
-  for (const entry of entries.values()) applyCollapsed(entry, collapse, false)
+  for (const entry of entries.values()) applyCollapsed(entry, collapse)
 }
 
 /** すべての取り付けを解除し、ホスト DOM を元へ戻す。無効化時に呼ぶ。 */

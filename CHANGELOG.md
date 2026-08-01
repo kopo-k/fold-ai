@@ -14,8 +14,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Options page with `autoFold`, `foldThreshold`, `keepLastExpanded`, `shortcut`,
   and per-site enable/disable.
 - Auto-fold for long answers and a keyboard shortcut to fold/unfold everything.
-- A second toggle at the end of each answer, plus scroll-follow on collapse, so
-  you can fold from where you finished reading without scrolling back up.
+- A minimap rail on the right edge with one segment per answer (height scaled to
+  answer length); click a segment to fold/unfold that answer in place, without
+  scrolling. Scroll-follow keeps the answer's top in view when collapsing.
 - Vitest unit tests and a Playwright smoke suite against DOM fixtures.
 - CI (typecheck / lint / test / build) and packaging scripts.
 

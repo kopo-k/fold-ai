@@ -8,15 +8,14 @@ import type { Settings } from '@/shared/settings'
 import { observeDocument } from './observer'
 import { createFold, exceedsThreshold, type FoldHandle } from './fold'
 import { createToggle, type ToggleHandle } from './ui/toggle'
+import { createMinimap, type MinimapHandle, type MinimapItem } from './ui/minimap'
 import { matchesShortcut } from './shortcut'
 
 interface Entry {
   el: HTMLElement
   fold: FoldHandle
-  // 先頭・末尾の 2 つのトグルを持つ。状態は常に同期する。
-  toggles: ToggleHandle[]
-  // スクロール追従の基準にする先頭トグルのホスト要素。
-  topHost: HTMLElement
+  // 回答の先頭に置く単一トグル。
+  toggle: ToggleHandle
   // keepLastExpanded のために「最新なので展開のままにした」ものを記録する。
   keptExpanded: boolean
 }
@@ -24,6 +23,7 @@ interface Entry {
 const entries = new Map<HTMLElement, Entry>()
 let adapter: Adapter | null = null
 let settings: Settings | null = null
+let minimap: MinimapHandle | null = null
 
 function siteEnabled(current: Settings): boolean {
   const host = location.host
@@ -32,17 +32,40 @@ function siteEnabled(current: Settings): boolean {
 }
 
 /**
- * 折りたたみ状態を適用し、両トグルの表示も同期する。
- * userInitiated かつ折りたたみのときは、回答の先頭が画面外にあれば
- * 先頭へスクロール追従する（末尾のトグルから畳んでも空白に取り残されない）。
+ * 折りたたみ状態を適用し、トグルの表示も同期する。
+ * userInitiated かつ折りたたみのときは、回答の先頭が画面外（上方）にあれば
+ * 先頭へスクロール追従する（畳んだ後に空白へ取り残されないようにする）。
  */
 function applyCollapsed(entry: Entry, collapsed: boolean, userInitiated: boolean): void {
   entry.fold.setCollapsed(collapsed)
-  for (const toggle of entry.toggles) toggle.setCollapsed(collapsed)
+  entry.toggle.setCollapsed(collapsed)
   if (collapsed && userInitiated) {
-    const rect = entry.topHost.getBoundingClientRect()
-    if (rect.top < 0) entry.topHost.scrollIntoView({ block: 'start' })
+    const rect = entry.toggle.host.getBoundingClientRect()
+    if (rect.top < 0) entry.toggle.host.scrollIntoView({ block: 'start' })
   }
+  refreshMinimap()
+}
+
+/** entries から右端ミニマップを再構築する。切り離された回答は間引く。 */
+function refreshMinimap(): void {
+  if (!minimap) return
+  const items: MinimapItem[] = []
+  for (const [el, entry] of entries) {
+    if (!el.isConnected) {
+      // SPA 遷移などで DOM から消えた回答は取り除く。
+      entry.toggle.remove()
+      entries.delete(el)
+      continue
+    }
+    items.push({
+      key: entry.el.getAttribute(PROCESSED_ATTR) ?? '',
+      collapsed: entry.fold.isCollapsed(),
+      ratio: entry.fold.target.scrollHeight || 0,
+      label: (el.textContent ?? '').trim().slice(0, 40),
+      onToggle: (next: boolean) => applyCollapsed(entry, next, false),
+    })
+  }
+  minimap.render(items)
 }
 
 /** 完了済み・未処理のメッセージにトグルを取り付ける。 */
@@ -52,11 +75,14 @@ function scan(): void {
   const messages = adapter.findMessages(document)
   const latest = messages.length > 0 ? messages[messages.length - 1] : null
 
+  let added = false
   for (const el of messages) {
     if (el.hasAttribute(PROCESSED_ATTR)) continue
     if (!adapter.isComplete(el)) continue // ストリーミング中は触らない
     attach(el, el === latest)
+    added = true
   }
+  if (added) refreshMinimap()
 }
 
 function attach(el: HTMLElement, isLatest: boolean): void {
@@ -69,23 +95,15 @@ function attach(el: HTMLElement, isLatest: boolean): void {
   // 高さ測定のため、まず展開状態で取り付ける。
   const fold = createFold(anchor, false)
 
-  const entry: Entry = {
-    el,
-    fold,
-    toggles: [],
-    topHost: document.createElement('span'),
-    keptExpanded: false,
-  }
+  // eslint-disable-next-line prefer-const -- entry は onUserToggle から参照するため先に宣言する
+  let entry: Entry
   const onUserToggle = (next: boolean): void => applyCollapsed(entry, next, true)
 
-  const topToggle = createToggle(false, onUserToggle)
-  const bottomToggle = createToggle(false, onUserToggle)
-  entry.toggles = [topToggle, bottomToggle]
-  entry.topHost = topToggle.host
+  const toggle = createToggle(false, onUserToggle)
+  entry = { el, fold, toggle, keptExpanded: false }
 
-  // 先頭（アンカーの直前）と末尾（アンカーの直後）にトグルを差し込む。
-  anchor.parentNode.insertBefore(topToggle.host, anchor)
-  anchor.parentNode.insertBefore(bottomToggle.host, anchor.nextSibling)
+  // 回答の先頭（アンカーの直前）にトグルを差し込む。
+  anchor.parentNode.insertBefore(toggle.host, anchor)
 
   entries.set(el, entry)
 
@@ -135,11 +153,12 @@ function toggleAll(collapse: boolean): void {
 /** すべての取り付けを解除し、ホスト DOM を元へ戻す。無効化時に呼ぶ。 */
 function teardownAll(): void {
   for (const [el, entry] of entries) {
-    for (const toggle of entry.toggles) toggle.remove()
+    entry.toggle.remove()
     entry.fold.release()
     el.removeAttribute(PROCESSED_ATTR)
   }
   entries.clear()
+  refreshMinimap()
 }
 
 function onKeydown(event: KeyboardEvent): void {
@@ -164,8 +183,12 @@ async function main(): Promise<void> {
   // 権限未付与などで設定が取れなくてもデフォルトで動く（loadSettings がフォールバック）。
   if (!siteEnabled(settings)) return
 
+  minimap = createMinimap()
   const stopObserving = observeDocument(scan)
   document.addEventListener('keydown', onKeydown, true)
+
+  // ウィンドウ幅の変化でミニマップの表示可否・高さが変わるため再描画する。
+  window.addEventListener('resize', () => refreshMinimap())
 
   onSettingsChanged((next) => {
     const wasEnabled = settings ? siteEnabled(settings) : false

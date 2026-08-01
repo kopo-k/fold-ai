@@ -19,11 +19,41 @@ scrolling.
   clashes with the host page's styles.
 - Optional auto-fold for answers longer than a configurable number of lines.
 - Keep the latest answer expanded while collapsing older ones.
+- A right-edge minimap with one segment per answer: click a segment to fold/unfold
+  that answer without scrolling, see which answer you're currently viewing, and
+  hover for a preview of its first lines.
 - A keyboard shortcut to expand/collapse everything at once.
 - Per-site enable/disable.
 
 Folding uses `max-height` + `overflow: hidden` — never `display: none` — so page
 search and copy keep working on collapsed answers.
+
+## Usage
+
+Once installed, open a supported site (ChatGPT, Claude, or Gemini) and start a
+conversation. fold-ai adds controls to each completed AI answer:
+
+- **Fold / unfold one answer:** click the toggle at the top of the answer. The
+  arrow shows the state — `▾` open, `▸` folded — and a folded answer keeps a short
+  faded preview so you can still tell answers apart.
+- **Fold from anywhere:** use the minimap on the right edge. Each segment is one
+  answer (taller = longer); click it to fold/unfold in place without scrolling.
+  The segment for the answer you're viewing is highlighted, and hovering a segment
+  both previews its first lines and highlights the matching answer's toggle.
+- **Fold / unfold everything:** press the keyboard shortcut (default
+  `Alt+Shift+F`).
+
+### Settings
+
+Open the options page (right-click the extension icon → **Options**, or via
+`chrome://extensions`) to configure:
+
+- **Auto-fold** long answers, and the **line threshold** for it.
+- **Keep the latest answer expanded** while older ones fold.
+- The **keyboard shortcut**.
+- **Per-site** enable/disable.
+
+Nothing ever leaves your browser — no network requests, no telemetry.
 
 ## Install (development build)
 

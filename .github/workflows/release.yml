@@ -1,0 +1,45 @@
+name: Release
+
+# v* タグを push すると、ビルド・パッケージして GitHub Releases に zip を添付する。
+# ストアへの提出は手動（この後の手順は docs/release.md 参照）。
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: build / package / publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # リリース前に品質ゲートを通す。
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+
+      # 本番ビルドと zip 生成（artifacts/ に出力）。
+      - run: pnpm build
+      - run: pnpm package
+
+      # GITHUB_TOKEN で Release を作成し、zip を添付する（外部アクション不使用）。
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" artifacts/*.zip \
+            --title "${GITHUB_REF_NAME}" \
+            --notes "Automated release for ${GITHUB_REF_NAME}. See CHANGELOG.md for details."

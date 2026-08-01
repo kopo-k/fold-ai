@@ -16,7 +16,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Auto-fold for long answers and a keyboard shortcut to fold/unfold everything.
 - A minimap rail on the right edge with one segment per answer (height scaled to
   answer length); click a segment to fold/unfold that answer in place, without
-  scrolling. Scroll-follow keeps the answer's top in view when collapsing.
+  scrolling. The segment for the answer you're currently viewing is highlighted,
+  and hovering a segment previews its first few lines. Scroll-follow keeps the
+  answer's top in view when collapsing.
+- Clearer collapse/expand toggle state: a direction arrow (▾ open / ▸ folded), a
+  filled style when folded, and a bottom fade on collapsed answers to signal more
+  content. Motion respects `prefers-reduced-motion`.
 - Vitest unit tests and a Playwright smoke suite against DOM fixtures.
 - CI (typecheck / lint / test / build) and packaging scripts.
 

@@ -12,6 +12,8 @@ import { createMinimap, type MinimapHandle, type MinimapItem } from './ui/minima
 import { matchesShortcut } from './shortcut'
 
 interface Entry {
+  // ミニマップの現在地ハイライト対象を特定するための一意 ID。
+  id: string
   el: HTMLElement
   fold: FoldHandle
   // 回答の先頭に置く単一トグル。
@@ -24,6 +26,7 @@ const entries = new Map<HTMLElement, Entry>()
 let adapter: Adapter | null = null
 let settings: Settings | null = null
 let minimap: MinimapHandle | null = null
+let nextEntryId = 0
 
 function siteEnabled(current: Settings): boolean {
   const host = location.host
@@ -57,15 +60,45 @@ function refreshMinimap(): void {
       entries.delete(el)
       continue
     }
+    const text = (el.textContent ?? '').replace(/\s+/g, ' ').trim()
     items.push({
-      key: entry.el.getAttribute(PROCESSED_ATTR) ?? '',
+      key: entry.id,
       collapsed: entry.fold.isCollapsed(),
       ratio: entry.fold.target.scrollHeight || 0,
-      label: (el.textContent ?? '').trim().slice(0, 40),
+      label: text.slice(0, 40),
+      preview: text.slice(0, 200),
       onToggle: (next: boolean) => applyCollapsed(entry, next, false),
     })
   }
   minimap.render(items)
+  updateActiveEntry()
+}
+
+/** 現在ビューポートに表示中の回答をミニマップでハイライトする。 */
+function updateActiveEntry(): void {
+  if (!minimap) return
+  // ビューポート上部 35% 付近の線を「読んでいる位置」とみなす。
+  const line = window.innerHeight * 0.35
+  let activeId: string | null = null
+  for (const [el, entry] of entries) {
+    if (!el.isConnected) continue
+    const rect = el.getBoundingClientRect()
+    if (rect.top <= line) {
+      activeId = entry.id // 基準線より上に入った回答を順次更新（最後＝現在地）
+    } else {
+      break // entries は文書順。基準線より下に来たら打ち切る。
+    }
+  }
+  minimap.setActive(activeId)
+}
+
+let activeRaf = 0
+function scheduleActiveUpdate(): void {
+  if (activeRaf) return
+  activeRaf = requestAnimationFrame(() => {
+    activeRaf = 0
+    updateActiveEntry()
+  })
 }
 
 /** 完了済み・未処理のメッセージにトグルを取り付ける。 */
@@ -100,7 +133,7 @@ function attach(el: HTMLElement, isLatest: boolean): void {
   const onUserToggle = (next: boolean): void => applyCollapsed(entry, next, true)
 
   const toggle = createToggle(false, onUserToggle)
-  entry = { el, fold, toggle, keptExpanded: false }
+  entry = { id: String(nextEntryId++), el, fold, toggle, keptExpanded: false }
 
   // 回答の先頭（アンカーの直前）にトグルを差し込む。
   anchor.parentNode.insertBefore(toggle.host, anchor)
@@ -186,6 +219,10 @@ async function main(): Promise<void> {
   minimap = createMinimap()
   const stopObserving = observeDocument(scan)
   document.addEventListener('keydown', onKeydown, true)
+
+  // スクロールで現在地ハイライトを更新（rAF で間引く）。capture で
+  // ホスト内のスクロールコンテナも拾う。
+  window.addEventListener('scroll', scheduleActiveUpdate, { passive: true, capture: true })
 
   // ウィンドウ幅の変化でミニマップの表示可否・高さが変わるため再描画する。
   window.addEventListener('resize', () => refreshMinimap())

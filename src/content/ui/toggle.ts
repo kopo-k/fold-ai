@@ -51,17 +51,22 @@ button:focus-visible {
 .icon {
   display: inline-block;
   width: 12px;
-  transition: transform 0.15s ease;
+  text-align: center;
 }
-:host([data-collapsed='true']) .icon {
-  transform: rotate(-90deg);
+/* 折りたたみ中は塗りつぶしで「畳まれている」状態を一目で分かるようにする。 */
+:host([data-collapsed='true']) button {
+  background: color-mix(in srgb, currentColor 20%, transparent);
+  border-color: color-mix(in srgb, currentColor 45%, transparent);
+  font-weight: 600;
+}
+:host([data-collapsed='true']) button:hover {
+  background: color-mix(in srgb, currentColor 28%, transparent);
 }
 ${
   // ホバー前提の UI を作らない。タッチ端末では常にヒット領域を広めに。
   isIOS ? 'button { min-width: 44px; }' : ''
 }
 @media (prefers-reduced-motion: reduce) {
-  .icon,
   button {
     transition: none;
   }
@@ -101,6 +106,8 @@ export function createToggle(
   let state = collapsed
   const render = (): void => {
     host.setAttribute('data-collapsed', String(state))
+    // アイコンの向きで状態を明示する（▾=展開中 / ▸=折りたたみ中）。
+    icon.textContent = state ? '▸' : '▾'
     label.textContent = state ? t('toggleUnfold') : t('toggleFold')
     button.setAttribute('aria-expanded', String(!state))
     button.setAttribute('aria-label', state ? t('toggleUnfoldAria') : t('toggleFoldAria'))

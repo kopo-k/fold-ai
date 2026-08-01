@@ -1,9 +1,10 @@
 // 画面右端に置く回答のミニマップ。1 回答 = 1 セグメント（高さは回答の長さに比例）。
 // セグメントをクリックするとその回答をその場で折りたたみ／展開できる（スクロール不要）。
+// 現在表示中の回答をハイライトし、ホバーで先頭数行のプレビューを出す。
 // ホスト CSS と干渉させないため Shadow DOM に閉じ込める。グローバル CSS は追加しない。
 
 export interface MinimapItem {
-  /** 一意キー（再描画時の識別用。今は未使用だが将来の差分描画向け）。 */
+  /** 一意キー（現在地ハイライトの対象特定に使う）。 */
   key: string
   /** 折りたたみ済みか。 */
   collapsed: boolean
@@ -11,12 +12,16 @@ export interface MinimapItem {
   ratio: number
   /** ツールチップに出す先頭テキスト。 */
   label: string
+  /** ホバー時に出す先頭数行のプレビュー。 */
+  preview: string
   /** クリック時に呼ぶ。次の折りたたみ状態を受け取る。 */
   onToggle: (nextCollapsed: boolean) => void
 }
 
 export interface MinimapHandle {
   render(items: MinimapItem[]): void
+  /** 現在表示中の回答（key）をハイライトする。null で解除。 */
+  setActive(key: string | null): void
   destroy(): void
 }
 
@@ -78,9 +83,38 @@ button.seg:focus-visible {
   background: currentColor;
   outline: none;
 }
+/* 現在表示中の回答を示すハイライト（現在地）。 */
+button.seg[data-active='true'] {
+  width: 16px;
+  background: currentColor;
+  box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 35%, transparent);
+}
+.preview {
+  position: fixed;
+  max-width: 300px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: canvastext;
+  background: canvas;
+  border: 1px solid color-mix(in srgb, canvastext 20%, transparent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s ease;
+}
+.preview[data-show='true'] {
+  opacity: 1;
+}
 @media (prefers-reduced-motion: reduce) {
   .rail,
-  button.seg {
+  button.seg,
+  .preview {
     transition: none;
   }
 }
@@ -96,19 +130,38 @@ export function createMinimap(): MinimapHandle {
   rail.className = 'rail'
   rail.setAttribute('role', 'group')
   rail.setAttribute('aria-label', 'fold-ai minimap')
-  shadow.append(style, rail)
+  const preview = document.createElement('div')
+  preview.className = 'preview'
+  shadow.append(style, rail, preview)
   document.body.appendChild(host)
 
+  let segments: HTMLElement[] = []
+
+  const showPreview = (seg: HTMLElement, text: string): void => {
+    if (!text) return
+    const rect = seg.getBoundingClientRect()
+    preview.textContent = text
+    // セグメントの左側に、縦位置を揃えて出す。
+    preview.style.top = `${Math.max(8, rect.top)}px`
+    preview.style.right = `${window.innerWidth - rect.left + 8}px`
+    preview.dataset.show = 'true'
+  }
+  const hidePreview = (): void => {
+    preview.dataset.show = 'false'
+  }
+
   const render = (items: MinimapItem[]): void => {
+    hidePreview()
     if (items.length < MIN_ITEMS || window.innerWidth < MIN_VIEWPORT_WIDTH) {
       host.style.display = 'none'
+      segments = []
       return
     }
     host.style.display = ''
 
     // 各セグメントの高さを算出し、合計が rail 上限を超えたら比例縮小する。
     const maxRail = window.innerHeight * 0.7
-    const gap = 3
+    const gap = 4
     const heights = items.map((it) => clamp(it.ratio * 0.04, 10, 48))
     const total = heights.reduce((a, b) => a + b, 0) + gap * (items.length - 1)
     if (total > maxRail) {
@@ -118,11 +171,12 @@ export function createMinimap(): MinimapHandle {
     }
 
     rail.replaceChildren()
-    items.forEach((it, i) => {
+    segments = items.map((it, i) => {
       const seg = document.createElement('button')
       seg.type = 'button'
       seg.className = 'seg'
       seg.style.height = `${heights[i]}px`
+      seg.dataset.key = it.key
       seg.dataset.collapsed = String(it.collapsed)
       const action = it.collapsed ? '展開する' : '折りたたむ'
       seg.title = it.label ? `${action}: ${it.label}` : action
@@ -131,12 +185,24 @@ export function createMinimap(): MinimapHandle {
         ev.preventDefault()
         it.onToggle(!it.collapsed)
       })
+      seg.addEventListener('mouseenter', () => showPreview(seg, it.preview))
+      seg.addEventListener('focus', () => showPreview(seg, it.preview))
+      seg.addEventListener('mouseleave', hidePreview)
+      seg.addEventListener('blur', hidePreview)
       rail.appendChild(seg)
+      return seg
     })
+  }
+
+  const setActive = (key: string | null): void => {
+    for (const seg of segments) {
+      seg.dataset.active = String(key !== null && seg.dataset.key === key)
+    }
   }
 
   return {
     render,
+    setActive,
     destroy() {
       host.remove()
     },

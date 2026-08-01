@@ -7,6 +7,7 @@ function item(over: Partial<MinimapItem> = {}): MinimapItem {
     collapsed: false,
     ratio: 300,
     label: 'answer text',
+    preview: 'answer preview text',
     onToggle: vi.fn(),
     ...over,
   }
@@ -48,6 +49,18 @@ describe('minimap', () => {
     first!.click()
     // collapsed=true をクリック → 次状態 false を要求する。
     expect(onToggle).toHaveBeenCalledWith(false)
+    map.destroy()
+  })
+
+  it('highlights the active answer via setActive', () => {
+    const map = createMinimap()
+    const host = document.querySelector<HTMLElement>('[data-fold-ai-minimap]')!
+    map.render([item({ key: 'a' }), item({ key: 'b' }), item({ key: 'c' })])
+    map.setActive('b')
+    const segs = segments(host)
+    expect(segs.map((s) => s.dataset.active)).toEqual(['false', 'true', 'false'])
+    map.setActive(null)
+    expect(segments(host).every((s) => s.dataset.active === 'false')).toBe(true)
     map.destroy()
   })
 

@@ -9,6 +9,7 @@ scrolling.
 - **Supported sites:** ChatGPT, Claude, Gemini (adapter-based, easy to extend)
 - **Browsers:** Chrome / Edge (Manifest V3), Firefox, Safari 16.4+ (macOS / iOS)
 - **Privacy:** no external requests, no telemetry, no remote config. Your conversations never leave the page.
+- **Install:** [Chrome Web Store](https://chromewebstore.google.com/detail/lmhphonmjgjplhimpiipodmlmeefdhgn)
 - **License:** MIT
 - **Website:** https://kopo-k.github.io/fold-ai/
 

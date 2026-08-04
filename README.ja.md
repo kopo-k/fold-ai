@@ -8,6 +8,7 @@
 - **対応サイト:** ChatGPT / Claude / Gemini（アダプタ方式で追加可能）
 - **対応ブラウザ:** Chrome / Edge（Manifest V3）、Firefox、Safari 16.4 以降（macOS / iOS）
 - **プライバシー:** 外部通信・テレメトリ・リモート設定なし。会話内容はページの外に出ません。
+- **インストール:** [Chrome ウェブストア](https://chromewebstore.google.com/detail/lmhphonmjgjplhimpiipodmlmeefdhgn)
 - **ライセンス:** MIT
 - **ウェブサイト:** https://kopo-k.github.io/fold-ai/
 

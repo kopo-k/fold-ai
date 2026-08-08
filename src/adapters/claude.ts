@@ -3,11 +3,13 @@ import type { Adapter } from './types'
 // Claude (claude.ai) — 実 DOM 2026-08 準拠。
 // 構造:
 //   .group/message-row[data-is-streaming]
-//     .font-claude-response            ← アシスタント応答ラッパ（メッセージ単位）
-//       .standard-markdown             ← 回答本文コンテナ（これを折りたたむ）
+//     .font-claude-response            ← アシスタント応答ラッパ（メッセージ単位・これを折りたたむ）
+//       .standard-markdown             ← 本文テキストコンテナ
 //         <p class="font-claude-response-body"> …各段落…
+//       （図・グラフ(canvas)・成果物などは .standard-markdown の外側に描画されることがある）
 // 注意: .font-claude-response-body は「段落ごと」に付くクラスでメッセージ単位ではない。
-//       .standard-markdown が 1 メッセージ = 1 つの本文コンテナ。
+//       折りたたみは応答ラッパ(.font-claude-response)全体に掛ける。本文だけを対象にすると
+//       図(canvas)が外側に残って畳めないため。
 
 const RESPONSE_SELECTOR = '.font-claude-response'
 const BODY_SELECTOR = '.standard-markdown'
@@ -35,8 +37,7 @@ export const claudeAdapter: Adapter = {
   },
 
   anchorFor(el) {
-    // 本文コンテナ全体（.standard-markdown）を折りたたみ対象にする。
-    // el 自身が本文コンテナ（フォールバック経路）なら el を返す。
-    return el.querySelector<HTMLElement>(BODY_SELECTOR) ?? el
+    // 応答ラッパ全体を折りたたみ対象にする（テキストも図(canvas)も一緒に畳む）。
+    return el
   },
 }

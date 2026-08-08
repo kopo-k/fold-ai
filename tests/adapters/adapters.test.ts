@@ -50,12 +50,14 @@ describe('claude adapter', () => {
     messages.forEach((m) => expect(m.classList.contains('font-claude-response')).toBe(true))
   })
 
-  it('anchors to the whole markdown body (.standard-markdown), not a paragraph', () => {
+  it('anchors to the whole response wrapper so figures fold too', () => {
     const [done] = claudeAdapter.findMessages(document)
     const anchor = claudeAdapter.anchorFor(done!)
-    expect(anchor?.classList.contains('standard-markdown')).toBe(true)
-    // 本文コンテナには複数段落が含まれる（＝段落単位ではない）。
+    // 応答ラッパ全体を対象にする（本文だけだと外側の図が畳めない）。
+    expect(anchor?.classList.contains('font-claude-response')).toBe(true)
+    // テキスト（複数段落）と図(canvas)の両方を含むこと。
     expect(anchor!.querySelectorAll('p').length).toBeGreaterThan(1)
+    expect(anchor!.querySelector('canvas')).not.toBeNull()
   })
 
   it('treats data-is-streaming="true" as incomplete', () => {

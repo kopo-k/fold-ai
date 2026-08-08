@@ -1,7 +1,9 @@
 name: Release
 
 # v* タグを push すると、ビルド・パッケージして GitHub Releases に zip を添付する。
-# ストアへの提出は手動（この後の手順は docs/release.md 参照）。
+# Chrome ウェブストアの認証情報（Secrets）が設定されていれば、そのまま
+# ストアへアップロード＆審査提出まで自動化する（未設定なら GitHub Release のみ）。
+# セットアップ手順は docs/chrome-web-store-automation.md を参照。
 on:
   push:
     tags:
@@ -14,6 +16,9 @@ jobs:
   release:
     name: build / package / publish
     runs-on: ubuntu-latest
+    # Secrets 未設定でも壊れないよう、ガード用にジョブ env へ写す。
+    env:
+      CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -43,3 +48,21 @@ jobs:
           gh release create "${GITHUB_REF_NAME}" artifacts/*.zip \
             --title "${GITHUB_REF_NAME}" \
             --notes "Automated release for ${GITHUB_REF_NAME}. See CHANGELOG.md for details."
+
+      # Chrome ウェブストアへ自動アップロード＆審査提出（Secrets 設定時のみ実行）。
+      # 必要 Secrets: CWS_EXTENSION_ID / CWS_CLIENT_ID / CWS_CLIENT_SECRET / CWS_REFRESH_TOKEN
+      - name: Publish to Chrome Web Store
+        if: ${{ env.CWS_EXTENSION_ID != '' }}
+        env:
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          npx --yes chrome-webstore-upload-cli@3 upload \
+            --source "artifacts/fold-ai-${VERSION}-chrome.zip" \
+            --extension-id "${CWS_EXTENSION_ID}" \
+            --client-id "${CWS_CLIENT_ID}" \
+            --client-secret "${CWS_CLIENT_SECRET}" \
+            --refresh-token "${CWS_REFRESH_TOKEN}" \
+            --auto-publish

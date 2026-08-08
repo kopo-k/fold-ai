@@ -6,6 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-08
+
+### Fixed
+
+- Claude: fold the whole response wrapper so figures and charts (`<canvas>`)
+  collapse together with the text, instead of the chart being left visible.
+
+### Changed
+
+- Redesigned the extension icons (rounded indigo with a text-line motif).
+
 ## [0.1.0] - 2026-08-01
 
 ### Added

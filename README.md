@@ -6,6 +6,8 @@
 answer in your chat history, so you can skim long conversations without endless
 scrolling.
 
+![fold-ai in action](docs/demo.gif)
+
 - **Supported sites:** ChatGPT, Claude, Gemini (adapter-based, easy to extend)
 - **Browsers:** Chrome / Edge (Manifest V3), Firefox, Safari 16.4+ (macOS / iOS)
 - **Privacy:** no external requests, no telemetry, no remote config. Your conversations never leave the page.
